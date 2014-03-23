@@ -33,17 +33,18 @@ IS_DELETE_IMAGE="false"
 #===========================================
 FLAVOR_ID=10
 IS_CREATE_VOL="false"
-VOL_NAME="vyatta-gw"
-IS_DELETE_VOL="false"
+NUM_CREATE_VOL=1
+VOL_PREFIX="vyatta-gw-vol-"
+IS_DELETE_VOL="true"
 
 #===========================================
 NUM_CREATE_GW=1
 GW_PREFIX="vyatta-gw-"
-IS_DELETE_GW="false"
+IS_DELETE_GW="true"
 
-NUM_CREATE_VM=1
+NUM_CREATE_VM=2
 VM_PREFIX="ubuntu-host-"
-IS_DELETE_VM="false"
+IS_DELETE_VM="true"
 
 
 #===========================================
@@ -68,7 +69,7 @@ if [ "$1" = "add" ]; then
 	else
 		echo create a new internal net and subnet
 		neutron net-create --tenant-id ${TENANT_ID} ${INT_NET_NAME}
-		neutron subnet-create --tenant-id ${TENANT_ID} --name ${INT_SUBNET_NAME} ${INT_NET_NAME} ${INT_IP_CIDR} --dns_nameservers list=true 8.8.8.7
+		neutron subnet-create --tenant-id ${TENANT_ID} --name ${INT_SUBNET_NAME} ${INT_NET_NAME} ${INT_IP_CIDR} --dns_nameservers list=true 8.8.8.8
 	fi
 
 	EXT_NET_ID=
@@ -100,6 +101,17 @@ if [ "$1" = "add" ]; then
     		glance image-list
 	fi
 
+	VM_IMAGE_ID=
+        VM_IMAGE_ID=`nova image-list|grep ${VM_IMAGE_NAME}|awk '{print $2}'`
+        if [ -n "${VM_IMAGE_ID}" ]; then
+                echo ubuntu image exists
+        else
+                echo upload the ubuntu image
+                glance add disk_format=qcow2 container_format=ovf name=${VM_IMAGE_NAME} is_public=true < ${VM_IMAGE_FILE}
+                glance image-list
+        fi
+
+
 	FLAVOR_NAME=
 	FLAVOR_NAME=`nova flavor-list| grep ${FLAVOR_ID}| awk '{print $4}'`
 	if [ -n "$FLAVOR_NAME" ]; then
@@ -108,25 +120,91 @@ if [ "$1" = "add" ]; then
 		echo nova flavor-create --is-public true vyatta $FLAVOR_ID 512 1 1
 		nova flavor-create --is-public true vyatta $FLAVOR_ID 512 1 1
 	fi
-
 	
-	neutron port-list --all-tenant
-	neutron net-list --all-tenant
-	neutron router-list --all-tenant
+	#neutron port-list --all-tenant
+	#neutron net-list --all-tenant
+	#neutron router-list --all-tenant
 
-
-	if [ "$IS_CREATE_VOL"=true ]; then
+	if [ "$IS_CREATE_VOL" = true ]; then
 		IMAGE_ID=`nova image-list|grep ${IMAGE_NAME}|awk '{print $2}'`
-		echo TBD-cinder $IMAGE_ID;		
-		#cinder create --image-id $IMAGE_ID --display-name $VOL_NAME 1
+		if [ -n "$IMAGE_ID" ]; then
+			echo glance image found
+			for (( i=1; i<=$NUM_CREATE_VOL; i++ ));do 
+				VOL_NAME=$VOL_PREFIX$i
+				echo $VOL_NAME
+				VOL_ID=	
+				VOL_ID=`cinder list |grep $VOL_NAME| awk '{print $2}'`
+				if [ -n "$VOL_ID" ]; then
+					echo volume exists
+				else
+					echo cinder create --image-id $IMAGE_ID --display-name $VOL_NAME 1
+					cinder create --image-id $IMAGE_ID --display-name $VOL_NAME 1 
+					sleep 60
+				fi
+			done
+		else echo no image provided
+		fi
 	fi
 
 	if [ "$NUM_CREATE_GW" -gt 0 ]; then
-		echo TBD-GW;
+		AVA_ZONE=control-zone
+		NETWORK_ID_INT=`neutron net-list|grep ${INT_NET_NAME}|awk '{print $2}'`
+		NETWORK_ID_EXT=`neutron net-list|grep ${EXT_NET_NAME}|awk '{print $2}'`
+
+		for (( i=1; i<=$NUM_CREATE_GW; i++ ));do
+			if [ "$IS_CREATE_VOL" = true ]; then
+				VOL_NAME=$VOL_PREFIX$i
+				VOL_ID=`nova volume-list |grep ${VOL_NAME}| awk '{print $2}'`
+				GW_NAME=$GW_PREFIX$i
+				echo $GW_NAME
+				GW_ID=
+				GW_ID=`nova list | grep $GW_NAME| awk '{print $2}'`
+				if [ -n "$GW_ID" ]; then
+                                        echo $GW_NAME exists
+                        	else
+                                        echo  nova boot --availability-zone ${AVA_ZONE} --flavor ${FLAVOR_ID} --block_device_mapping vda=${VOL_ID}:::0 --nic net-id=${NETWORK_ID_EXT} --nic net-id=${NETWORK_ID_INT} ${GW_NAME}
+
+					nova boot --availability-zone ${AVA_ZONE} --flavor ${FLAVOR_ID} --block_device_mapping vda=${VOL_ID}:::0 --nic net-id=${NETWORK_ID_EXT} --nic net-id=${NETWORK_ID_INT} ${GW_NAME}
+                                        
+                        	fi
+			else	
+				echo create gw from image directly
+				IMAGE_ID=`glance image-list|grep ${IMAGE_NAME}|awk '{print $2}'`
+				GW_NAME=$GW_PREFIX$i
+                                echo $GW_NAME
+                                GW_ID=
+                                GW_ID=`nova list | grep $GW_NAME| awk '{print $2}'`
+                                if [ -n "$GW_ID" ]; then
+                                        echo $GW_NAME exists
+                                else
+                                        echo  nova boot --availability-zone ${AVA_ZONE} --flavor ${FLAVOR_ID} --image ${IMAGE_ID} --nic net-id=${NETWORK_ID_EXT} --nic net-id=${NETWORK_ID_INT} ${GW_NAME}
+
+					nova boot --availability-zone ${AVA_ZONE} --flavor ${FLAVOR_ID} --image ${IMAGE_ID} --nic net-id=${NETWORK_ID_EXT} --nic net-id=${NETWORK_ID_INT} ${GW_NAME}
+				fi
+			fi
+
+		done
 	fi
 
+
+
         if [ "$NUM_CREATE_VM" -gt 0 ]; then
-                echo TBD-VM;
+                AVA_ZONE=compute-zone
+                NETWORK_ID_INT=`neutron net-list|grep ${INT_NET_NAME}|awk '{print $2}'`
+		VM_IMAGE_ID=`glance image-list|grep ${VM_IMAGE_NAME}|awk '{print $2}'`
+                for (( i=1; i<=$NUM_CREATE_VM; i++ ));do
+                        VM_NAME=$VM_PREFIX$i
+                        echo vm $VM_NAME is to be created
+                        VM_ID=
+                        VM_ID=`nova list | grep $VM_NAME| awk '{print $2}'`
+                        if [ -n "$VM_ID" ]; then
+                                        echo $VM_NAME exists
+                        else
+					nova boot --availability-zone ${AVA_ZONE} --flavor 1  --image ${VM_IMAGE_ID} --nic net-id=${NETWORK_ID_INT} ${VM_NAME}
+					nova list
+                        fi
+                done
+
         fi
 
 
@@ -137,15 +215,63 @@ elif [ "$1" = "delete" ]; then
 	ROUTER_ID=`neutron router-list|grep ${ROUTER_NAME}|awk '{print $2}'`
 	EXT_NET_ID=`neutron net-list|grep ${EXT_NET_NAME}|awk '{print $2}'`
 
+
 	if [ "$IS_DELETE_VM" = "true" ]; then
-		echo TBD-delete-VM-instances...
-	else 	echo keep vyatta-gw instances
+                for (( i=1; i<=$NUM_CREATE_VM; i++ ));do
+                        VM_NAME=$VM_PREFIX$i
+                        echo vm $VM_NAME is to be deleted
+                        VM_ID=
+                        VM_ID=`nova list | grep $VM_NAME| awk '{print $2}'`
+                        if [ -n "$VM_ID" ]; then
+                        	nova delete ${VM_NAME}
+                        else
+				echo ${VM_NAME} does not exist
+                        fi
+                nova list
+                done
+
+	else 	
+		echo keep vyatta-gw instances
+		echo now exist deleting...
+		exit
 	fi
 
 	if [ "$IS_DELETE_GW" = true ]; then
-		 echo TBD-delete-vyatta-gw-instances...
-	else	echo keep VM instances
+		for (( i=1; i<=$NUM_CREATE_GW; i++ ));do
+                        GW_NAME=$GW_PREFIX$i
+                        echo vyatta GW $GW_NAME is to be deleted
+                        GW_ID=
+                        GW_ID=`nova list | grep $GW_NAME| awk '{print $2}'`
+                        if [ -n "$GW_ID" ]; then
+                                        nova delete ${GW_NAME}
+                        else
+                                        echo ${GW_NAME} does not exist
+                        fi
+                nova list
+                done
+	else	echo keep vyatta-gw instances
+                echo now exist deleting...
+                exit
         fi
+
+	sleep 5
+	
+	if [ "$IS_DELETE_VOL" = true ]; then
+		for (( i=1; i<=$NUM_CREATE_VOL; i++ ));do
+                        VOL_NAME=$VOL_PREFIX$i
+                        echo vyatta GW volume $VOL_NAME is to be deleted
+                        VOL_ID=
+                        VOL_ID=`cinder list | grep $VOL_NAME| awk '{print $2}'`
+                        if [ -n "$VOL_ID" ]; then
+       				cinder delete ${VOL_NAME}
+                        else
+                                echo ${VOL_NAME} does not exist
+                        fi
+                cinder list
+                done
+
+	else 	echo keep created cinder-volumes
+	fi
 
 
 	if [ -n "$ROUTER_ID" ]; then
@@ -175,7 +301,6 @@ elif [ "$1" = "delete" ]; then
         	keystone tenant-delete ${TENANT_ID}
 	fi
 
-	#nova image-list
 
 	if [ "$IS_DELETE_IMAGE" = true ]; then 
 		IMAGE_ID=
