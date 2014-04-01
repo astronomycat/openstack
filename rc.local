@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# This script will be executed *after* all the other init scripts.
+# You can put your own initialization stuff in here if you don't
+# want to do the full Sys V style init stuff.
+
+touch /var/lock/subsys/local
+
+# my self-script
+vconfig add eth0 trunk
+vconfig add eth1 trunk
+
+sh /root/patch-iptables.sh
+#sh /root/add-veth-pair-external.sh
+
+sh /root/ifup-vxlan0.sh
+ovs-vsctl del-port br-eth1 vxlan0
+ovs-vsctl add-port br-eth1 vxlan0
+# end of my self-script
+
+#This_is_configuration_for_openstack_network
+
+#ifconfig br-int promisc up
+#TAP_DEVICE=$(ifconfig -a | grep "^tap" | awk '{print $1}')
+#for tap in $TAP_DEVICE; do ifconfig $tap up; done
+#GATEWAY=$(route -n | egrep "^0.0.0.0" | awk '{print $2}')
+#ifconfig br-eth1 promisc up
+#IP_ADDR=$(ifconfig vxlan0 | sed '/inet\ /!d;s/.*r://g;s/\ .*//g')
+#ifconfig br-eth1 $IP_ADDR netmask 255.255.255.0
+#ifconfig vxlan0 0.0.0.0
+
+
+#This_is_the_end_of_the_configuration
+
+
+
+
+
