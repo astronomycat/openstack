@@ -1,0 +1,32 @@
+#!/usr/bin/expect
+
+proc usage {} {
+  puts "expect de-associate-floating-ip.exp <nat_entry_id>"
+
+}
+
+if {$argc < 1} {
+  puts stdout "$argv0 err params\n"
+  puts stdout "Usage:\n"	
+  usage
+  exit 1
+}
+
+set timeout 10
+set nat_entry_id [lindex $argv 0]
+
+puts stdout "Now removing nat entry $nat_entry_id\n"
+
+spawn bash
+ 
+send "configure\r"
+
+send "delete nat source rule $nat_entry_id\r"
+
+send "delete nat destination rule $nat_entry_id\r"
+
+send "commit\r"
+send "save\r"
+send "exit\r"
+send "exit\r"
+interact

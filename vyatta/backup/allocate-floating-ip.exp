@@ -1,0 +1,29 @@
+#!/usr/bin/expect
+
+proc usage {} {
+  puts "expect allocate-floating-ip.exp <floating_ip/netmask_len>"
+
+}
+
+if {$argc < 1} {
+  puts stdout "$argv0 err params\n"
+  puts stdout "Usage:\n"	
+  usage
+  exit 1
+}
+
+set timeout 10
+set floating_ip [lindex $argv 0]
+puts stdout "Now allocating floating ip: $floating_ip\n"
+
+spawn bash
+ 
+send "configure\r"
+
+send "set interfaces ethernet eth0 vrrp vrrp-group 100 virtual-address $floating_ip \r"
+
+send "commit\r"
+send "save\r"
+send "exit\r"
+send "exit\r"
+interact

@@ -1,0 +1,38 @@
+#!/usr/bin/expect
+
+proc usage {} {
+  puts "expect associate-floating-ip.exp <floating_ip> <internal_ip> <nat_entry_id>"
+
+}
+
+if {$argc < 3} {
+  puts stdout "$argv0 err params\n"
+  puts stdout "Usage:\n"	
+  usage
+  exit 1
+}
+
+set timeout 10
+set floating_ip [lindex $argv 0]
+set internal_ip [lindex $argv 1]
+set nat_entry_id [lindex $argv 2]
+
+puts stdout "Now associating floating ip $floating_ip to internal ip $internal_ip\n"
+
+spawn bash
+ 
+send "configure\r"
+
+send "set nat source rule $nat_entry_id source address $internal_ip \r"
+send "set nat source rule $nat_entry_id translation address $floating_ip \r"
+send "set nat source rule $nat_entry_id outbound-interface eth0 \r"
+
+send "set nat destination rule $nat_entry_id destination address $floating_ip \r"
+send "set nat destination rule $nat_entry_id translation address $internal_ip \r"
+send "set nat destination rule $nat_entry_id inbound-interface eth0 \r"
+
+send "commit\r"
+send "save\r"
+send "exit\r"
+send "exit\r"
+interact
