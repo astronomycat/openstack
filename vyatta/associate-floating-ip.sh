@@ -36,21 +36,48 @@ done
 if [ x${floating_ip} = x ] ; then
 echo "Please provide floating ip addr"
 echo "usage associate-floating-ip.sh <-e nat_entry_id> <-f floating_ip> <-i internal_ip>"
-exit;
+exit 1;
 fi
 
 if [ x${internal_ip} = x ] ; then
 echo "Please provide internal ip addr"
 echo "usage associate-floating-ip.sh <-e nat_entry_id> <-f floating_ip> <-i internal_ip>"
-exit;
+exit 1;
 fi
 
 if [ x${nat_entry_id} = x ] ; then
 echo "Please provide nat entry id"
 echo "usage associate-floating-ip.sh <-e nat_entry_id> <-f floating_ip> <-i internal_ip>"
-exit;
+exit 1;
 fi
 
+test=`ip addr | grep ${floating_ip}| awk '{print $6}'`
+if [ x$test = x ] ; then
+echo "The specified floating IP has not been allocated."
+exit 1;
+fi
+
+
+/bin/ping -c 1 $internal_ip > ping.txt 
+sleep 1
+test=`cat ping.txt | grep ttl | awk '{print $6}'`
+rm ./ping.txt
+if [ x$test = x ] ; then
+echo "No route to internal host "$internal_ip
+exit 1;
+fi
+
+
+dnat_entry_id=`/opt/vyatta/sbin/vyatta-show-nat-rules.pl --type=destination | grep $floating_ip | awk '{print $1}'`
+#echo dnat_entry_id=$dnat_entry_id
+snat_entry_id=`/opt/vyatta/sbin/vyatta-show-nat-rules.pl --type=source | grep $floating_ip | awk '{print $1}'`
+#echo snat_entry_id=$snat_entry_id
+
+
+if [[ x${snat_entry_id} != x ||  x${dnat_entry_id} != x ]] ; then
+echo "Floating IP alreay associated."
+exit 1;
+fi
 
 
 

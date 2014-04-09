@@ -6,7 +6,8 @@
 
 source /root/openstack-scripts/header.sh
 floating_ip=
-vrrp_group_id=100
+vrrp_group_id=`/opt/vyatta/bin/sudo-users/vyatta-show-vrrp.pl --show=summary | grep eth0 | awk '{print $2}'`
+echo "warning: the default vrrp-group is set to "$vrrp_group_id
 
 while getopts "f:g:" arg 
 do
@@ -21,19 +22,26 @@ do
                 ;;
              ?)  
             echo "unkonw argument"
-   	    echo "usage allocate-floating-ip.sh <-f floating_ip> [-g vrrp_group_id]"		
+   	    echo "usage allocate-floating-ip.sh <-f floating_ip/subnet_len> [-g vrrp_group_id]"		
         exit 1
         ;;
         esac
 done
 
 if [ x${floating_ip} = x ] ; then
-echo "usage allocate-floating-ip.sh <-f floating_ip> [-g vrrp_group_id]"
+echo "usage allocate-floating-ip.sh <-f floating_ip/subnet_len> [-g vrrp_group_id]"
 exit;
 fi
 
+test=`echo ${floating_ip} | grep /`
+if [ x$test = x ] ;  then
+echo "usage allocate-floating-ip.sh <-f floating_ip/subnet_len> [-g vrrp_group_id]"
+echo "you must specify the subnet len."
+exit 1
+fi
+
  
-$SET interfaces ethernet eth0 vrrp vrrp-group 100 virtual-address $floating_ip 
+$SET interfaces ethernet eth0 vrrp vrrp-group $vrrp_group_id virtual-address $floating_ip 
 
 $COMMIT 
 $SAVE
