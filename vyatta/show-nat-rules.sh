@@ -16,7 +16,7 @@ do
 		dump_to_file=y
                 ;;
              ?)  
-            	echo "unkonw argument"
+            	echo "unknown argument"
    	    	echo "usage show-firewall.sh [-d]"		
         	exit 1
         	;;

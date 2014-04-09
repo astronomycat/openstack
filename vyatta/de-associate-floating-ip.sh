@@ -9,18 +9,22 @@ source /root/openstack-scripts/header.sh
 nat_entry_id=
 floating_ip=
 
-while getopts "f:" arg
+while getopts "f:a" arg
 do
         case $arg in
              f)
                 echo "floating_ip="$OPTARG
                 floating_ip=$OPTARG
                 ;;
+             a)
+                echo "block arp on the allocating floating IP"
+                block_arp=y
+                ;;
              ?)
-            echo "unkonw argument"
-            echo "usage associate-floating-ip.sh <-f floating_ip>"
-	    exit 1
-        ;;
+            	echo "unknown argument"
+            	echo "usage associate-floating-ip.sh <-f floating_ip>"
+	    	exit 1
+        	;;
         esac
 done
 
@@ -50,6 +54,13 @@ $DELETE nat source rule $snat_entry_id
 
 echo delete nat destination rule $dnat_entry_id
 $DELETE nat destination rule $dnat_entry_id 
+
+
+if [ x$block_arp = xy ] ;  then
+echo "adding the ARP blocking rule..."
+echo arptables -A INPUT -d $floating_ip -j DROP
+arptables -A INPUT -d $floating_ip -j DROP
+fi
 
 $COMMIT
 $SAVE

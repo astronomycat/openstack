@@ -26,7 +26,7 @@ do
 		internal_ip=$OPTARG	
 		;;
              ?)
-            echo "unkonw argument"
+            echo "unknown argument"
             echo "usage associate-floating-ip.sh <-e nat_entry_id> <-f floating_ip> <-i internal_ip>"
 	    exit 1
         ;;
@@ -79,8 +79,6 @@ echo "Floating IP alreay associated."
 exit 1;
 fi
 
-
-
 $SET nat source rule $nat_entry_id source address $internal_ip 
 $SET nat source rule $nat_entry_id translation address $floating_ip 
 $SET nat source rule $nat_entry_id outbound-interface eth0 
@@ -88,6 +86,16 @@ $SET nat source rule $nat_entry_id outbound-interface eth0
 $SET nat destination rule $nat_entry_id destination address $floating_ip 
 $SET nat destination rule $nat_entry_id translation address $internal_ip 
 $SET nat destination rule $nat_entry_id inbound-interface eth0 
+
+
+
+action=`arptables -nL --line-number | grep $floating_ip | awk '{print $3}'`
+
+if [ x$action = xDROP ] ; then
+echo "removing the ARP blocking rule..."
+echo arptables -D INPUT -d $floating_ip -j DROP
+arptables -D INPUT -d $floating_ip -j DROP
+fi
 
 $COMMIT
 $SAVE

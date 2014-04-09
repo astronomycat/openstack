@@ -31,7 +31,7 @@ do
 
 		
 	     ?)	
-            	echo "unkonw argument"
+            	echo "unknow argument"
             	echo "usage del-nat-rule.sh <-n nat_entry_id> <-d/-s>"
 	    	exit 1
         	;;

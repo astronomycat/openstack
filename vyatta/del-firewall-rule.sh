@@ -31,7 +31,7 @@ do
                 rule_number=$OPTARG
                 ;;
              ?)  
-            	echo "unkonw argument"
+            	echo "unknown argument"
    	    	echo "usage set-firewall-rule.sh <-r rule_number> [-n policy_name]"		
         	exit 1
         	;;

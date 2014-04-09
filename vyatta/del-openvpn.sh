@@ -35,7 +35,7 @@ do
                 vtun_name=$OPTARG
                 ;;
 	     ?)
-            	echo "unkonw argument"
+            	echo "unknown argument"
 		echo "usage set-openvpn <-n vtun_name>"
         	exit 1
         	;;

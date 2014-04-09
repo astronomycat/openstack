@@ -60,7 +60,7 @@ do
 		;;
 	
              ?)  
-            	echo "unkonw argument"
+            	echo "unknow argument"
 		echo "usage set-openvpn <-s server_subnet> <-r push_route>"
 		echo "                  [-n vtun_name][-m mode]"
 		echo "                  [-p protocols][-o option]"

@@ -55,7 +55,7 @@ do
                 rule_number=$OPTARG
                 ;;
              ?)  
-            	echo "unkonw argument"
+            	echo "unknown argument"
 		echo "usage set-firewall-rule.sh <-r rule_number> [-n policy_name]"
 		echo "                           [-a action][-i src_ip][-l dst_ip]"
 		echo "                           [-s src_ports][-d dst_ports]"

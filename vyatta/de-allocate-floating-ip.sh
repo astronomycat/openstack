@@ -17,13 +17,14 @@ do
              f)
                 echo "floating_ip="$OPTARG
                 floating_ip=$OPTARG
+		floating_ip_addr=`echo $floating_ip | awk -F/ '{print $1 }'`
                 ;;
              g)
                 echo "vrrp-groud-id="$OPTARG
                 vrrp_group_id=$OPTARG
                 ;;
              ?)
-            echo "unkonw argument"
+            echo "unknown argument"
             echo "usage allocate-floating-ip.sh <-f floating_ip/subnet_len> [-g vrrp_group_id]"
         exit 1
         ;;
@@ -51,6 +52,17 @@ fi
 
 echo delete interfaces ethernet eth0 vrrp vrrp-group $vrrp_group_id virtual-address $floating_ip
 $DELETE interfaces ethernet eth0 vrrp vrrp-group $vrrp_group_id virtual-address $floating_ip
+
+#line_number=
+#line_number=`arptables -nL --line-number | grep $floating_ip_addr | awk '{print $1}'`
+action=`arptables -nL --line-number | grep $floating_ip_addr | awk '{print $3}'`
+
+if [ x$action = xDROP ] ; then
+echo "removing the ARP blocking rule..."
+echo arptables -D INPUT -d $floating_ip_addr -j DROP
+arptables -D INPUT -d $floating_ip_addr -j DROP
+fi
+
 $COMMIT
 $SAVE
 
