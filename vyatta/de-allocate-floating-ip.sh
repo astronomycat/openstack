@@ -42,6 +42,12 @@ echo "you must specify the subnet len."
 exit
 fi
 
+test=`ip addr | grep ${floating_ip}| awk '{print $6}'`
+if [ x$test = x ] ; then
+echo "The specified floating IP has not been allocated."
+exit 1;
+fi
+
 
 echo delete interfaces ethernet eth0 vrrp vrrp-group $vrrp_group_id virtual-address $floating_ip
 $DELETE interfaces ethernet eth0 vrrp vrrp-group $vrrp_group_id virtual-address $floating_ip

@@ -7,6 +7,11 @@
 source /root/openstack-scripts/header.sh
 floating_ip=
 vrrp_group_id=`/opt/vyatta/bin/sudo-users/vyatta-show-vrrp.pl --show=summary | grep eth0 | awk '{print $2}'`
+
+if [ x${vrrp_group_id} = x ] ; then
+vrrp_group_id=100
+fi
+
 echo "warning: the default vrrp-group is set to "$vrrp_group_id
 
 while getopts "f:g:" arg 
